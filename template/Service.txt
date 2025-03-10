@@ -1,0 +1,138 @@
+<?php
+namespace App\Service;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
+use App\DTO\__ClassNameBaseDTO;
+use App\DTO\__ClassNameDTO;
+use App\Entity\__ClassName;
+class __ClassNameService
+{
+    public function __construct
+    (
+        EntityManagerInterface $em,
+        SerializerInterface $serializer,
+        ValidatorInterface $validator
+    )
+    {
+        $this->em= $em;
+        $this->serializer = $serializer;
+        $this->validator = $validator;
+    }
+
+    public function fetchAll($request)
+    {
+        $itemsLength= $request->get('itemsLength',10);
+        $page= $request->get('page',1);
+        $itemsSort  = $request->get('itemsSort','DESC');
+        $itemsSortBy= $request->get('itemsSortBy','id');
+        $itemsFilter= $request->get('filter', []);
+        $itemsBetween= $request->get('between', null);
+        $itemsSearch= $request->get('search', null);
+
+        $query = $this->em->getRepository(__ClassName::class)->createQueryBuilder('q');
+        if ($itemsSearch) {
+            $val= $itemsSearch[array_keys($itemsSearch)[0]];
+            $params= explode(",", array_keys($itemsSearch)[0]);
+            $QueryParam= "";
+            foreach ($params as $index => $param) {
+                if($index > 0)
+                {
+                    $QueryParam.= " OR q.$param LIKE :search";
+                }
+                else
+                {
+                    $QueryParam.= "q.$param LIKE :search";
+                }
+            }
+            $query->andWhere($QueryParam);
+            $query->setParameter('search', '%' . $val . '%');
+        }
+        foreach ($itemsFilter as $key => $value) {
+            if(is_array($value)){
+                $param= array_keys($value)[0];
+                $query
+                    ->leftJoin('q.'.$key, $key)
+                    ->andWhere("$key.$param = :$key")
+                    ->setParameter($key, $value[$param]);
+            }
+            else
+            {
+                $query
+                    ->andWhere("q.$key = :$key")
+                    ->setParameter($key, $value);
+            }
+        }
+        if($itemsBetween)
+        {
+            $param= array_keys($itemsBetween)[0];
+            $ranges= $itemsBetween[array_keys($itemsBetween)[0]];
+            $ranges= explode("AND", $ranges);
+            $query
+                ->andWhere("q.$param BETWEEN :r1 AND :r2")
+                ->setParameter("r1", $ranges[0])
+                ->setParameter("r2", $ranges[1]);
+        }
+
+        $total = clone $query;
+        $total = $total
+            ->select('COUNT(q.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+        $query->orderBy('q.'.$itemsSortBy, $itemsSort)
+            ->setFirstResult(($page - 1) * $itemsLength)
+            ->setMaxResults($itemsLength);
+        $items = $query->getQuery()->getResult();
+        $dtos = array_map(
+            fn($item) => new __ClassNameDTO($item),
+            $items
+        );
+        return array(
+            'items' => $dtos,
+            'total' => $total
+        );
+    }
+
+    public function fetch($id)
+    {
+        $item= $this->em->getRepository(__ClassName::class)->find(intval($id));
+        if($item)
+        {
+            return new __ClassNameDTO($item);
+        }
+        return array("status" => false);
+    }
+
+    public function save($request)
+    {
+        $dto= $this->serializer->deserialize($request->getContent(), __ClassNameBaseDTO::class,'json');
+        $__ClassName= $dto->id ? $this->em->getRepository(__ClassName::class)->find($dto->id) : new __ClassName();
+        $k= json_decode($request->getContent(), true);
+        //__Content
+
+        $errors = $this->validator->validate($__ClassName);
+
+        if(count($errors) > 0)
+        {
+            return array(
+                "status" => false,
+                "message" => (string) $errors
+            );
+        }
+        if(!$dto->id) {$this->em->persist($__ClassName);}
+        $this->em->flush();
+        return new __ClassNameDTO($__ClassName);
+    }
+
+    public function delete($id)
+    {
+        $item= $this->em->getRepository(__ClassName::class)->find(intval($id));
+        if($item)
+        {
+            $this->em->remove($item);
+            $this->em->flush();
+            return array("status" => true);
+        }
+        return array("status" => false);
+    }
+}
