@@ -1,0 +1,12 @@
+<?php
+namespace App\DTO;
+use App\Entity\__ClassName;
+
+class __ClassNameDTO extends __ClassNameBaseDTO
+{
+    public function __construct(__ClassName $__ClassName)
+    {
+        //__Content
+    }
+    public function toArray(): array{return get_object_vars($this);}
+}
