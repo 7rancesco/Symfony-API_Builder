@@ -2,9 +2,15 @@
 ### DTO and Service file creator for build APIs faster.
 This package contains a command that generates dedicated DTO and Service templates, callable from your API endpoints. You can override request parameters or filter outputs directly from controllers without worrying about business logic involving CRUD, pagination, or standard filters like search and between. You can customize the validator directly in the Entity file to validate data before persistence.
 
+## Build DTO and Service by Class Entity
+```bash
+php bin/console app:build-api Person
+```
+
 ## Controller example
 
-'''php
+```php
+
 #[Route('/api/person', name: 'app_person')]
 class PersonController extends AbstractController
 {
@@ -40,4 +46,33 @@ class PersonController extends AbstractController
         return $this->json($this->personService->fetch($id));
     }
 }
-'''
+
+```
+
+### Request example
+```
+/api/person?filter[name]=Bob
+```
+```
+/api/person?filter[job][role]=FrontEnd Developer
+```
+```
+/api/person?search[name,surname]=Ross
+```
+```
+/api/person?between[birthday]=1990-01-01AND1992-01-01
+```
+
+## Validator
+```php
+use Symfony\Component\Validator\Constraints as Assert;
+
+#[ORM\Entity(repositoryClass: PersonRepository::class)]
+class Person
+{
+    #[ORM\Column(length: 255)]
+    #[Assert\NotBlank]
+    #[Assert\NotNull]
+    private ?string $name = null;
+}
+```
