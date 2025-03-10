@@ -1,0 +1,6 @@
+<?php
+namespace App\DTO;
+class __ClassNameBaseDTO
+{
+    //__Content
+}
